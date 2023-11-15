@@ -23,7 +23,6 @@ const listingSchema = new mongoose.Schema(
     },
     discountedPrice: {
       type: Number,
-      required: true,
     },
     bathrooms: {
       type: Number,
@@ -54,7 +53,7 @@ const listingSchema = new mongoose.Schema(
       required: true,
     },
     userRef: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
   },
