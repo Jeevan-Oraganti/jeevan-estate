@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   getDownloadURL,
   getStorage,
@@ -5,14 +6,13 @@ import {
   uploadBytesResumable,
 } from "firebase/storage";
 import { app } from "../Firebase";
-import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 export default function CreateListing() {
   const { currentUser } = useSelector((state) => state.user);
   const navigate = useNavigate();
-  const [file, setFile] = useState([]);
+  const [files, setFiles] = useState([]);
   const [formData, setFormData] = useState({
     imageUrls: [],
     name: "",
@@ -33,13 +33,13 @@ export default function CreateListing() {
   const [loading, setLoading] = useState(false);
   console.log(formData);
   const handleImageSubmit = (e) => {
-    if (file.length > 0 && file.length + formData.imageUrls.length < 7) {
+    if (files.length > 0 && files.length + formData.imageUrls.length < 7) {
       setUploading(true);
       setImageUploadError(false);
       const promises = [];
 
-      for (let i = 0; i < file.length; i++) {
-        promises.push(storeImage(file[i]));
+      for (let i = 0; i < files.length; i++) {
+        promises.push(storeImage(files[i]));
       }
       Promise.all(promises)
         .then((urls) => {
@@ -51,7 +51,7 @@ export default function CreateListing() {
           setUploading(false);
         })
         .catch((err) => {
-          setImageUploadError("Image upload failed (2MB max per Image)");
+          setImageUploadError("Image upload failed (2 mb max per image)");
           setUploading(false);
         });
     } else {
@@ -67,11 +67,11 @@ export default function CreateListing() {
       const storageRef = ref(storage, fileName);
       const uploadTask = uploadBytesResumable(storageRef, file);
       uploadTask.on(
-        "state_changes",
+        "state_changed",
         (snapshot) => {
           const progress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(Math.round(progress));
+          console.log(`Upload is ${progress}% done`);
         },
         (error) => {
           reject(error);
@@ -86,30 +86,40 @@ export default function CreateListing() {
   };
 
   const handleRemoveImage = (index) => {
-    setFormData((prevData) => {
-      const updatedImageUrls = [...prevData.imageUrls];
-      updatedImageUrls.splice(index, 1);
-      return { ...prevData, imageUrls: updatedImageUrls };
+    setFormData({
+      ...formData,
+      imageUrls: formData.imageUrls.filter((_, i) => i !== index),
     });
   };
 
   const handleChange = (e) => {
     if (e.target.id === "sale" || e.target.id === "rent") {
-      setFormData({ ...formData, type: e.target.id });
+      setFormData({
+        ...formData,
+        type: e.target.id,
+      });
     }
+
     if (
       e.target.id === "parking" ||
       e.target.id === "furnished" ||
       e.target.id === "offer"
     ) {
-      setFormData({ ...formData, [e.target.id]: e.target.checked });
+      setFormData({
+        ...formData,
+        [e.target.id]: e.target.checked,
+      });
     }
+
     if (
       e.target.type === "number" ||
       e.target.type === "text" ||
       e.target.type === "textarea"
     ) {
-      setFormData({ ...formData, [e.target.id]: e.target.value });
+      setFormData({
+        ...formData,
+        [e.target.id]: e.target.value,
+      });
     }
   };
 
@@ -117,9 +127,9 @@ export default function CreateListing() {
     e.preventDefault();
     try {
       if (formData.imageUrls.length < 1)
-        return setError("Please upload atleast 1 image");
+        return setError("You must upload at least one image");
       if (+formData.regularPrice < +formData.discountPrice)
-        return setError("Discount price cannot be greater than regular price");
+        return setError("Discount price must be lower than regular price");
       setLoading(true);
       setError(false);
       const res = await fetch("/api/listing/create", {
@@ -137,21 +147,12 @@ export default function CreateListing() {
       if (data.success === false) {
         setError(data.message);
       }
-      if (data.listing._id) {
-        console.log(
-          "Listing created successfully. Listing ID:",
-          data.listing._id
-        );
-        navigate(`/listing/${data.listing._id}`);
-      } else {
-        console.error("Error: _id is undefined in the server response");
-      }
+      navigate(`/listing/${data.listing._id}`);
     } catch (error) {
       setError(error.message);
       setLoading(false);
     }
   };
-
   return (
     <main className="p-3 max-w-4xl mx-auto">
       <h1 className="text-3xl font-semibold text-center my-7">
@@ -162,7 +163,7 @@ export default function CreateListing() {
           <input
             type="text"
             placeholder="Name"
-            className="border-2 border-gray-300 p-3 rounded-lg mb-2"
+            className="border p-3 rounded-lg"
             id="name"
             maxLength="62"
             minLength="10"
@@ -173,7 +174,7 @@ export default function CreateListing() {
           <textarea
             type="text"
             placeholder="Description"
-            className="border-2 border-gray-300 p-3 rounded-lg mb-2"
+            className="border p-3 rounded-lg"
             id="description"
             required
             onChange={handleChange}
@@ -182,7 +183,7 @@ export default function CreateListing() {
           <input
             type="text"
             placeholder="Address"
-            className="border-2 border-gray-300 p-3 rounded-lg mb-2"
+            className="border p-3 rounded-lg"
             id="address"
             required
             onChange={handleChange}
@@ -217,7 +218,7 @@ export default function CreateListing() {
                 onChange={handleChange}
                 checked={formData.parking}
               />
-              <span>Parking Spot</span>
+              <span>Parking spot</span>
             </div>
             <div className="flex gap-2">
               <input
@@ -272,15 +273,17 @@ export default function CreateListing() {
                 type="number"
                 id="regularPrice"
                 min="50"
-                max="1000000000"
+                max="10000000"
                 required
                 className="p-3 border border-gray-300 rounded-lg"
                 onChange={handleChange}
                 value={formData.regularPrice}
               />
               <div className="flex flex-col items-center">
-                <p>Regular Price</p>
-                <span className="text-xs">(₹/month)</span>
+                <p>Regular price</p>
+                {formData.type === "rent" && (
+                  <span className="text-xs">($ / month)</span>
+                )}
               </div>
             </div>
             {formData.offer && (
@@ -289,15 +292,18 @@ export default function CreateListing() {
                   type="number"
                   id="discountPrice"
                   min="0"
-                  max="1000000000"
+                  max="10000000"
                   required
                   className="p-3 border border-gray-300 rounded-lg"
                   onChange={handleChange}
                   value={formData.discountPrice}
                 />
                 <div className="flex flex-col items-center">
-                  <p>Discouted Price</p>
-                  <span className="text-xs">(₹/month)</span>
+                  <p>Discounted price</p>
+
+                  {formData.type === "rent" && (
+                    <span className="text-xs">($ / month)</span>
+                  )}
                 </div>
               </div>
             )}
@@ -312,18 +318,18 @@ export default function CreateListing() {
           </p>
           <div className="flex gap-4">
             <input
-              onChange={(e) => setFile(e.target.files)}
-              className="p-3 border-gray-300 rounded w-full"
+              onChange={(e) => setFiles(e.target.files)}
+              className="p-3 border border-gray-300 rounded w-full"
               type="file"
               id="images"
-              accept="images/*"
+              accept="image/*"
               multiple
             />
             <button
               type="button"
               disabled={uploading}
               onClick={handleImageSubmit}
-              className="p-3 text-green-700 border border-green-700 rounded uppercase hover:shadow-lg opacity-80"
+              className="p-3 text-green-700 border border-green-700 rounded uppercase hover:shadow-lg disabled:opacity-80"
             >
               {uploading ? "Uploading..." : "Upload"}
             </button>
@@ -355,7 +361,7 @@ export default function CreateListing() {
             disabled={loading || uploading}
             className="p-3 bg-slate-700 text-white rounded-lg uppercase hover:opacity-95 disabled:opacity-80"
           >
-            {loading ? "Creating..." : "Create Listing"}
+            {loading ? "Creating..." : "Create listing"}
           </button>
           {error && <p className="text-red-700 text-sm">{error}</p>}
         </div>
