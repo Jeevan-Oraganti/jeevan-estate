@@ -5,7 +5,7 @@ import { Navigation } from "swiper/modules";
 import SwiperCore from "swiper";
 import "swiper/css/bundle";
 import ListingItem from "../components/ListingItem";
-import heroImage from "C:/Users/SUMALATHA/Documents/mern estate/client/src/assets/hero.jpg";
+import heroImage from "https://firebasestorage.googleapis.com/v0/b/mern-estate-50287.appspot.com/o/hero.jpg?alt=media&token=36a2816d-0726-4a7d-8a63-4f97188ece03";
 
 SwiperCore.use([Navigation]);
 
